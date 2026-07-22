@@ -34,7 +34,7 @@ interface ChatMessage {
 }
 
 /** Interactive Knowledge Graph Viewer Component */
-function InteractiveKnowledgeGraph({ specRows, findingsList, documents }: { specRows: any[]; findingsList: any[]; documents: any[] }) {
+function InteractiveKnowledgeGraph({ specRows, findingsList, documents, height }: { specRows: any[]; findingsList: any[]; documents: any[]; height?: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -166,7 +166,7 @@ function InteractiveKnowledgeGraph({ specRows, findingsList, documents }: { spec
   }, [specRows, findingsList, documents, setNodes, setEdges]);
 
   return (
-    <div style={{ width: '100%', height: '540px', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-0)', border: '1px solid var(--line)' }}>
+    <div style={{ width: '100%', height: height || '540px', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-0)', border: '1px solid var(--line)' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -271,297 +271,307 @@ export function OverviewView() {
   return (
     <div className="page" style={{ background: 'var(--bg-0)' }}>
       <div className="page__body" style={{ overflowY: 'auto', display: 'block', paddingBottom: '96px' }}>
-        <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '32px 32px 0', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+        <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px 24px 0', display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
           {/* ========================================================================= */}
-          {/* 1. TOP OF PAGE CHATBOT & SEARCH INTERFACE (ASK ET ANYTHING)               */}
+          {/* TOP SPLIT CONTAINER: LEFT 60% (ASK AI & OCR) | RIGHT 40% (KNOWLEDGE GRAPH) */}
           {/* ========================================================================= */}
-          <section style={{ background: 'var(--bg-1)', border: '1px solid var(--teal-line)', borderRadius: '12px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 8px 32px rgba(0, 240, 255, 0.05)' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h2 style={{ fontSize: '20px', color: 'var(--txt-hi)', margin: 0, fontWeight: 400 }}>
-                  Ask AI anything...
-                </h2>
-                <span className="mono" style={{ fontSize: '10px', color: 'var(--teal)', background: 'var(--teal-dim)', padding: '2px 8px', borderRadius: '4px' }}>
-                  HYBRID RAG SEARCH
-                </span>
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--txt-md)', marginTop: '4px', margin: 0 }}>
-                Query uploaded engineering documents, extract specifications, or search verified compliance evidence.
-              </p>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 6fr) minmax(0, 4fr)', gap: '24px', alignItems: 'start' }}>
 
-            {/* Main Input Box */}
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <input 
-                type="text" 
-                className="ui-input" 
-                style={{ flex: 1, padding: '14px 18px', fontSize: '14px', borderRadius: '6px', border: '1px solid var(--teal-line)', background: 'var(--bg-0)', color: 'var(--txt-hi)' }} 
-                placeholder="Search uploaded documents or ask a technical question (e.g. Lead time for TX-01)..."
-                value={ragQuery}
-                onChange={(e) => setRagQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleRagSearch()}
-              />
-              <button 
-                className="btn btn--approve" 
-                onClick={() => handleRagSearch()} 
-                disabled={isRagLoading || !ragQuery.trim()}
-                style={{ padding: '0 28px', fontSize: '14px' }}
-              >
-                {isRagLoading ? 'Searching...' : 'Search Documents'}
-              </button>
-            </div>
+            {/* ========================================================================= */}
+            {/* LEFT COLUMN (60%): STACKED (1. ASK AI ANYTHING + 2. OCR RESULTS)         */}
+            {/* ========================================================================= */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-            {/* Preset Examples per Prompt */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: 'var(--txt-md)', marginRight: '4px' }}>Examples:</span>
-              {[
-                "Summarize uploaded specification",
-                "Show compliance issues",
-                "Find schedule risks",
-                "Explain this drawing"
-              ].map((example, i) => (
-                <button
-                  key={i}
-                  className="btn"
-                  style={{ fontSize: '11px', padding: '5px 12px', background: 'var(--bg-2)' }}
-                  onClick={() => handleRagSearch(example)}
-                >
-                  • {example}
-                </button>
-              ))}
-            </div>
-
-            {/* Message Thread */}
-            {messages.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '420px', overflowY: 'auto', marginTop: '8px' }}>
-                {messages.map((msg, i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: msg.sender === 'user' ? '80%' : '100%', width: msg.sender === 'ai' ? '100%' : 'auto' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--txt-md)' }}>
-                      {msg.sender === 'user' ? 'Lead Engineer' : 'AI Assistant'} · {msg.timestamp}
-                    </div>
-
-                    <div style={{ 
-                      background: msg.sender === 'user' ? 'var(--teal-dim)' : 'var(--bg-0)', 
-                      border: `1px solid ${msg.sender === 'user' ? 'var(--teal-line)' : 'var(--line)'}`, 
-                      padding: '16px', 
-                      borderRadius: '8px',
-                      color: 'var(--txt-hi)',
-                      fontSize: '13px',
-                      lineHeight: 1.5
-                    }}>
-                      <div style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
-
-                      {msg.reasoningTrace && (
-                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--line)', fontSize: '11px', color: 'var(--txt-md)' }}>
-                          <strong>Reasoning Trace:</strong> {msg.reasoningTrace}
-                        </div>
-                      )}
-
-                      {msg.sender === 'ai' && msg.textChunks && msg.textChunks.length > 0 && (
-                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ fontSize: '10px', color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            Evidence Citations
-                          </div>
-                          {msg.textChunks.map((chunk, cidx) => (
-                            <div key={cidx} style={{ background: 'var(--bg-1)', borderLeft: '2px solid var(--teal)', padding: '8px 12px', borderRadius: '0 4px 4px 0', fontSize: '12px' }}>
-                              <div style={{ fontSize: '10px', color: 'var(--txt-md)', marginBottom: '2px' }}>Source: {chunk.sourceDoc}</div>
-                              <div style={{ color: 'var(--txt-hi)' }}>"{chunk.text}"</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+              {/* 1. ASK AI ANYTHING... (HYBRID RAG SEARCH) */}
+              <section style={{ background: 'var(--bg-1)', border: '1px solid var(--teal-line)', borderRadius: '10px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 32px rgba(0, 240, 255, 0.04)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <h2 style={{ fontSize: '18px', color: 'var(--txt-hi)', margin: 0, fontWeight: 500 }}>
+                      Ask AI anything...
+                    </h2>
+                    <span className="mono" style={{ fontSize: '10px', color: 'var(--teal)', background: 'var(--teal-dim)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--teal-line)' }}>
+                      HYBRID RAG SEARCH
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* ========================================================================= */}
-          {/* 2. OCR RESULTS (REORDERED: FIRST BEFORE DOCUMENT SUMMARY)                 */}
-          {/* ========================================================================= */}
-          <section style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '8px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h2 style={{ fontSize: '16px', color: 'var(--txt-hi)', margin: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  OCR Results & Document Text Stream
-                  <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '4px', background: 'var(--teal-dim)', color: 'var(--teal)', border: '1px solid var(--teal-line)' }}>
-                    {documents.length} Available Documents
-                  </span>
-                </h2>
-                <div style={{ fontSize: '12px', color: 'var(--txt-md)', marginTop: '2px' }}>
-                  Extracted optical text stream, OCR confidence metrics, and document structure analysis
+                  <p style={{ fontSize: '12px', color: 'var(--txt-md)', marginTop: '4px', margin: 0 }}>
+                    Query uploaded engineering documents, extract specifications, or search verified compliance evidence.
+                  </p>
                 </div>
-              </div>
 
-              {documents.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--txt-md)' }}>Selected Doc:</span>
-                  <select 
-                    className="ui-input"
-                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: 'var(--bg-2)', color: 'var(--txt-hi)', border: '1px solid var(--teal-line)', fontWeight: 500 }}
-                    value={activeOcrDoc?.id || ''}
-                    onChange={(e) => setSelectedDocId(e.target.value)}
+                {/* Main Input Box */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    type="text" 
+                    className="ui-input" 
+                    style={{ flex: 1, padding: '12px 16px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--teal-line)', background: 'var(--bg-0)', color: 'var(--txt-hi)' }} 
+                    placeholder="Search uploaded documents or ask a technical question..." 
+                    value={ragQuery}
+                    onChange={(e) => setRagQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRagSearch()}
+                  />
+                  <button 
+                    className="btn btn--approve" 
+                    onClick={() => handleRagSearch()} 
+                    disabled={isRagLoading || !ragQuery.trim()}
+                    style={{ padding: '0 20px', fontSize: '13px', whiteSpace: 'nowrap' }}
                   >
-                    {documents.map((d, idx) => (
-                      <option key={`${d.id}-${idx}`} value={d.id}>[DOC] {d.name} ({d.id})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {activeOcrDoc ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', background: 'var(--bg-0)', padding: '16px', borderRadius: '6px', border: '1px solid var(--line)' }}>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Pages Processed</div>
-                    <div style={{ fontSize: '14px', color: 'var(--txt-hi)', fontWeight: 600, marginTop: '4px' }}>
-                      {activeOcrDoc.pagesProcessed ?? 12} Pages
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Extracted Lines / Words</div>
-                    <div style={{ fontSize: '14px', color: 'var(--txt-hi)', fontWeight: 600, marginTop: '4px' }}>
-                      {activeOcrDoc.ocrResult?.words_result_num ?? 84} Lines ({((activeOcrDoc.ocrResult?.words_result_num ?? 84) * 16)} Words)
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Structure Metadata</div>
-                    <div style={{ fontSize: '13px', color: 'var(--txt-md)', marginTop: '4px' }}>
-                      Accurate High-Precision Parsing
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>OCR Engine & Accuracy</div>
-                    <div style={{ fontSize: '13px', color: 'var(--teal)', fontWeight: 500, marginTop: '4px' }}>
-                      Baidu High-Accuracy (99.4% Conf)
-                    </div>
-                  </div>
+                    {isRagLoading ? 'Searching...' : 'Search Documents'}
+                  </button>
                 </div>
 
-                {/* View Extracted Text Panel */}
-                <div style={{ border: '1px solid var(--line)', borderRadius: '6px', background: 'var(--bg-0)', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <button 
-                        className="btn" 
-                        style={{ fontSize: '12px', padding: '6px 14px', background: showOcrText ? 'var(--teal-dim)' : 'var(--bg-2)', color: showOcrText ? 'var(--teal)' : 'var(--txt-hi)', border: '1px solid var(--teal-line)' }}
-                        onClick={() => setShowOcrText(!showOcrText)}
-                      >
-                        {showOcrText ? '▲ Hide Extracted Text Stream' : '▼ View Extracted Text Stream'}
-                      </button>
+                {/* Preset Examples per Prompt */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--txt-md)', marginRight: '2px' }}>Examples:</span>
+                  {[
+                    "Summarize uploaded specification",
+                    "Show compliance issues",
+                    "Find schedule risks",
+                    "Explain this drawing"
+                  ].map((example, i) => (
+                    <button
+                      key={i}
+                      className="btn"
+                      style={{ fontSize: '10.5px', padding: '4px 10px', background: 'var(--bg-2)' }}
+                      onClick={() => handleRagSearch(example)}
+                    >
+                      • {example}
+                    </button>
+                  ))}
+                </div>
 
-                      {showOcrText && (
-                        <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-2)', padding: '2px', borderRadius: '4px', border: '1px solid var(--line)' }}>
-                          <button
-                            style={{ padding: '3px 10px', fontSize: '11px', borderRadius: '3px', background: ocrViewMode === 'stream' ? 'var(--teal-dim)' : 'transparent', color: ocrViewMode === 'stream' ? 'var(--teal)' : 'var(--txt-md)', border: 'none', cursor: 'pointer' }}
-                            onClick={() => setOcrViewMode('stream')}
-                          >
-                            Stream View
-                          </button>
-                          <button
-                            style={{ padding: '3px 10px', fontSize: '11px', borderRadius: '3px', background: ocrViewMode === 'json' ? 'var(--teal-dim)' : 'transparent', color: ocrViewMode === 'json' ? 'var(--teal)' : 'var(--txt-md)', border: 'none', cursor: 'pointer' }}
-                            onClick={() => setOcrViewMode('json')}
-                          >
-                            Structured JSON
-                          </button>
+                {/* Message Thread */}
+                {messages.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '320px', overflowY: 'auto', marginTop: '4px' }}>
+                    {messages.map((msg, i) => (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: msg.sender === 'user' ? '85%' : '100%', width: msg.sender === 'ai' ? '100%' : 'auto' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--txt-md)' }}>
+                          {msg.sender === 'user' ? 'Lead Engineer' : 'AI Assistant'} · {msg.timestamp}
                         </div>
-                      )}
-                    </div>
 
-                    {showOcrText && (
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input 
-                          type="text" 
-                          placeholder="Filter extracted lines (e.g. CDU, Voltage)..." 
-                          value={ocrFilter}
-                          onChange={(e) => setOcrFilter(e.target.value)}
-                          className="ui-input"
-                          style={{ padding: '5px 10px', fontSize: '11px', width: '220px', borderRadius: '4px', background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--txt-hi)' }}
-                        />
-                        <button
-                          className="btn"
-                          style={{ fontSize: '11px', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          onClick={() => handleRagSearch(`Summarize specifications for ${activeOcrDoc.name}`)}
-                        >
-                          <Sparkles size={12} /> Ask AI About Doc
-                        </button>
+                        <div style={{ 
+                          background: msg.sender === 'user' ? 'var(--teal-dim)' : 'var(--bg-0)', 
+                          border: `1px solid ${msg.sender === 'user' ? 'var(--teal-line)' : 'var(--line)'}`, 
+                          padding: '12px 14px', 
+                          borderRadius: '6px',
+                          color: 'var(--txt-hi)',
+                          fontSize: '12px',
+                          lineHeight: 1.45
+                        }}>
+                          <div style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
+
+                          {msg.reasoningTrace && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--line)', fontSize: '10.5px', color: 'var(--txt-md)' }}>
+                              <strong>Reasoning Trace:</strong> {msg.reasoningTrace}
+                            </div>
+                          )}
+
+                          {msg.sender === 'ai' && msg.textChunks && msg.textChunks.length > 0 && (
+                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ fontSize: '10px', color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                Evidence Citations
+                              </div>
+                              {msg.textChunks.map((chunk, cidx) => (
+                                <div key={cidx} style={{ background: 'var(--bg-1)', borderLeft: '2px solid var(--teal)', padding: '6px 10px', borderRadius: '0 4px 4px 0', fontSize: '11px' }}>
+                                  <div style={{ fontSize: '9.5px', color: 'var(--txt-md)', marginBottom: '2px' }}>Source: {chunk.sourceDoc}</div>
+                                  <div style={{ color: 'var(--txt-hi)' }}>"{chunk.text}"</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* 2. OCR RESULTS & DOCUMENT TEXT STREAM */}
+              <section style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '10px', padding: '22px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '16px', color: 'var(--txt-hi)', margin: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      OCR Results & Document Text Stream
+                      <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '4px', background: 'var(--teal-dim)', color: 'var(--teal)', border: '1px solid var(--teal-line)' }}>
+                        {documents.length} Available Documents
+                      </span>
+                    </h2>
+                    <div style={{ fontSize: '12px', color: 'var(--txt-md)', marginTop: '2px' }}>
+                      Extracted optical text stream, OCR confidence metrics, and document structure analysis
+                    </div>
                   </div>
 
-                  {showOcrText && (
-                    ocrViewMode === 'stream' ? (
-                      <div className="mono" style={{ padding: '14px', background: 'var(--bg-1)', border: '1px solid var(--teal-line)', borderRadius: '6px', fontSize: '11px', color: 'var(--txt-hi)', maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {activeOcrDoc.ocrResult?.words_result && activeOcrDoc.ocrResult.words_result.length > 0 ? (
-                          activeOcrDoc.ocrResult.words_result
-                            .filter(line => !ocrFilter || line.words.toLowerCase().includes(ocrFilter.toLowerCase()))
-                            .map((line, idx) => {
-                              const isHeader = line.words.startsWith('SECTION') || line.words.startsWith('PART') || line.words.startsWith('DRAWING') || line.words.startsWith('TECHNICAL') || line.words.startsWith('PROJECT');
-                              const isDeviation = line.words.includes('DEVIATION') || line.words.includes('HIGH RISK') || line.words.includes('CRITICAL') || line.words.includes('BOTTLENECK');
+                  {documents.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--txt-md)' }}>Selected Doc:</span>
+                      <select 
+                        className="ui-input"
+                        style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: 'var(--bg-2)', color: 'var(--txt-hi)', border: '1px solid var(--teal-line)', fontWeight: 500 }}
+                        value={activeOcrDoc?.id || ''}
+                        onChange={(e) => setSelectedDocId(e.target.value)}
+                      >
+                        {documents.map((d, idx) => (
+                          <option key={`${d.id}-${idx}`} value={d.id}>[DOC] {d.name} ({d.id})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
 
-                              return (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '4px 8px', borderRadius: '4px', background: isDeviation ? 'rgba(255, 77, 77, 0.08)' : isHeader ? 'rgba(0, 240, 255, 0.05)' : 'transparent', borderLeft: isDeviation ? '2px solid #ff4d4d' : isHeader ? '2px solid var(--teal)' : 'none' }}>
-                                  <span style={{ color: 'var(--txt-md)', fontSize: '10px', minWidth: '28px' }}>[{String(idx + 1).padStart(2, '0')}]</span>
-                                  <div style={{ flex: 1, color: isDeviation ? '#ff6666' : isHeader ? 'var(--teal)' : 'var(--txt-hi)', fontWeight: isHeader ? 600 : 400 }}>
-                                    {line.words}
-                                  </div>
-                                  <span style={{ fontSize: '9px', color: 'var(--txt-md)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: '3px' }}>
-                                    99.4%
-                                  </span>
-                                </div>
-                              );
-                            })
-                        ) : (
-                          <div style={{ color: 'var(--txt-md)', padding: '12px', textAlign: 'center' }}>
-                            No text lines matching filter.
+                {activeOcrDoc ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', background: 'var(--bg-0)', padding: '14px', borderRadius: '6px', border: '1px solid var(--line)' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Pages Processed</div>
+                        <div style={{ fontSize: '13px', color: 'var(--txt-hi)', fontWeight: 600, marginTop: '2px' }}>
+                          {activeOcrDoc.pagesProcessed ?? 12} Pages
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Extracted Lines / Words</div>
+                        <div style={{ fontSize: '13px', color: 'var(--txt-hi)', fontWeight: 600, marginTop: '2px' }}>
+                          {activeOcrDoc.ocrResult?.words_result_num ?? 84} Lines ({((activeOcrDoc.ocrResult?.words_result_num ?? 84) * 16)} Words)
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>Structure Metadata</div>
+                        <div style={{ fontSize: '12px', color: 'var(--txt-md)', marginTop: '2px' }}>
+                          Accurate High-Precision Parsing
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--txt-md)', textTransform: 'uppercase' }}>OCR Engine & Accuracy</div>
+                        <div style={{ fontSize: '12px', color: 'var(--teal)', fontWeight: 500, marginTop: '2px' }}>
+                          Baidu High-Accuracy (99.4% Conf)
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* View Extracted Text Panel */}
+                    <div style={{ border: '1px solid var(--line)', borderRadius: '6px', background: 'var(--bg-0)', padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <button 
+                            className="btn" 
+                            style={{ fontSize: '11px', padding: '5px 12px', background: showOcrText ? 'var(--teal-dim)' : 'var(--bg-2)', color: showOcrText ? 'var(--teal)' : 'var(--txt-hi)', border: '1px solid var(--teal-line)' }}
+                            onClick={() => setShowOcrText(!showOcrText)}
+                          >
+                            {showOcrText ? '▲ Hide Extracted Text Stream' : '▼ View Extracted Text Stream'}
+                          </button>
+
+                          {showOcrText && (
+                            <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-2)', padding: '2px', borderRadius: '4px', border: '1px solid var(--line)' }}>
+                              <button
+                                style={{ padding: '3px 8px', fontSize: '10.5px', borderRadius: '3px', background: ocrViewMode === 'stream' ? 'var(--teal-dim)' : 'transparent', color: ocrViewMode === 'stream' ? 'var(--teal)' : 'var(--txt-md)', border: 'none', cursor: 'pointer' }}
+                                onClick={() => setOcrViewMode('stream')}
+                              >
+                                Stream View
+                              </button>
+                              <button
+                                style={{ padding: '3px 8px', fontSize: '10.5px', borderRadius: '3px', background: ocrViewMode === 'json' ? 'var(--teal-dim)' : 'transparent', color: ocrViewMode === 'json' ? 'var(--teal)' : 'var(--txt-md)', border: 'none', cursor: 'pointer' }}
+                                onClick={() => setOcrViewMode('json')}
+                              >
+                                Structured JSON
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {showOcrText && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="text" 
+                              placeholder="Filter extracted lines..." 
+                              value={ocrFilter}
+                              onChange={(e) => setOcrFilter(e.target.value)}
+                              className="ui-input"
+                              style={{ padding: '4px 8px', fontSize: '11px', width: '160px', borderRadius: '4px', background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--txt-hi)' }}
+                            />
+                            <button
+                              className="btn"
+                              style={{ fontSize: '10.5px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => handleRagSearch(`Summarize specifications for ${activeOcrDoc.name}`)}
+                            >
+                              <Sparkles size={11} /> Ask AI
+                            </button>
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="mono" style={{ padding: '14px', background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '6px', fontSize: '11px', color: 'var(--teal)', maxHeight: '300px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                        {JSON.stringify(activeOcrDoc.ocrResult, null, 2)}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div style={{ padding: '24px', background: 'var(--bg-0)', borderRadius: '6px', border: '1px dashed var(--line)', textAlign: 'center', color: 'var(--txt-md)', fontSize: '13px' }}>
-                No OCR results available.
-              </div>
-            )}
-          </section>
 
+                      {showOcrText && (
+                        ocrViewMode === 'stream' ? (
+                          <div className="mono" style={{ padding: '12px', background: 'var(--bg-1)', border: '1px solid var(--teal-line)', borderRadius: '6px', fontSize: '11px', color: 'var(--txt-hi)', maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {activeOcrDoc.ocrResult?.words_result && activeOcrDoc.ocrResult.words_result.length > 0 ? (
+                              activeOcrDoc.ocrResult.words_result
+                                .filter(line => !ocrFilter || line.words.toLowerCase().includes(ocrFilter.toLowerCase()))
+                                .map((line, idx) => {
+                                  const isHeader = line.words.startsWith('SECTION') || line.words.startsWith('PART') || line.words.startsWith('DRAWING') || line.words.startsWith('TECHNICAL') || line.words.startsWith('PROJECT');
+                                  const isDeviation = line.words.includes('DEVIATION') || line.words.includes('HIGH RISK') || line.words.includes('CRITICAL') || line.words.includes('BOTTLENECK');
 
+                                  return (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '3px 6px', borderRadius: '4px', background: isDeviation ? 'rgba(255, 77, 77, 0.08)' : isHeader ? 'rgba(0, 240, 255, 0.05)' : 'transparent', borderLeft: isDeviation ? '2px solid #ff4d4d' : isHeader ? '2px solid var(--teal)' : 'none' }}>
+                                      <span style={{ color: 'var(--txt-md)', fontSize: '9.5px', minWidth: '24px' }}>[{String(idx + 1).padStart(2, '0')}]</span>
+                                      <div style={{ flex: 1, color: isDeviation ? '#ff6666' : isHeader ? 'var(--teal)' : 'var(--txt-hi)', fontWeight: isHeader ? 600 : 400 }}>
+                                        {line.words}
+                                      </div>
+                                      <span style={{ fontSize: '9px', color: 'var(--txt-md)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: '3px' }}>
+                                        99.4%
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                            ) : (
+                              <div style={{ color: 'var(--txt-md)', padding: '12px', textAlign: 'center' }}>
+                                No text lines matching filter.
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mono" style={{ padding: '12px', background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '6px', fontSize: '11px', color: 'var(--teal)', maxHeight: '240px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                            {JSON.stringify(activeOcrDoc.ocrResult, null, 2)}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', background: 'var(--bg-0)', borderRadius: '6px', border: '1px dashed var(--line)', textAlign: 'center', color: 'var(--txt-md)', fontSize: '12px' }}>
+                    No OCR results available.
+                  </div>
+                )}
+              </section>
 
-          {/* ========================================================================= */}
-          {/* 4. EXECUTION KNOWLEDGE GRAPH (INTERACTIVE GRAPH VIEW)                     */}
-          {/* ========================================================================= */}
-          <section style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '8px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '16px', color: 'var(--txt-hi)', margin: 0, fontWeight: 500 }}>
-                  Execution Knowledge Graph
-                </h2>
-                <div style={{ fontSize: '12px', color: 'var(--txt-md)', marginTop: '2px' }}>
-                  Interactive network map connecting documents, extracted equipment specifications, schedule risks, and governing code clauses
-                </div>
-              </div>
-
-              <button 
-                className="btn" 
-                style={{ fontSize: '12px', padding: '6px 14px' }}
-                onClick={() => router.push('/explorer')}
-              >
-                Full Thread Explorer →
-              </button>
             </div>
 
-            <InteractiveKnowledgeGraph specRows={specRows} findingsList={findingsList} documents={documents} />
-          </section>
+            {/* ========================================================================= */}
+            {/* RIGHT COLUMN (40%): EXECUTION KNOWLEDGE GRAPH                             */}
+            {/* ========================================================================= */}
+            <section style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h2 style={{ fontSize: '15px', color: 'var(--txt-hi)', margin: 0, fontWeight: 600 }}>
+                    Execution Knowledge Graph
+                  </h2>
+                  <div style={{ fontSize: '11px', color: 'var(--txt-md)', marginTop: '2px' }}>
+                    Interactive network map connecting documents, equipment specs & risks
+                  </div>
+                </div>
+
+                <button 
+                  className="btn" 
+                  style={{ fontSize: '11px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                  onClick={() => router.push('/explorer')}
+                >
+                  Full Explorer →
+                </button>
+              </div>
+
+              <div style={{ flex: 1, minHeight: '520px', height: '520px' }}>
+                <InteractiveKnowledgeGraph specRows={specRows} findingsList={findingsList} documents={documents} height="520px" />
+              </div>
+            </section>
+
+          </div>
 
           {/* ========================================================================= */}
           {/* 5. GEMINI STRUCTURED EXTRACTION                                           */}
